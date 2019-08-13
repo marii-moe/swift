@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -emit-sil -verify %s
+// RUN: %target-run-simple-swift
 // REQUIRES: executable_test
 import StdlibUnittest
 #if os(macOS)
@@ -28,8 +28,6 @@ OptionalTests.test("Optional DifferentialView Math") {
 }
 
 OptionalTests.test("Optional identity") {
-    // expected-error @+6 {{function is not differentiable}}
-    // expected-note @+1 {{differentiating enum values is not yet supported}}
     func optionalIdentity(_ x: Optional<Float>) -> Optional<Float> {
         return x
     }
