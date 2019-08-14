@@ -119,7 +119,7 @@
 /// Unconditionally unwrapping a `nil` instance with `!` triggers a runtime
 /// error.
 @frozen
-public enum Optional<Wrapped>: ExpressibleByNilLiteral {
+public enum Optional<Wrapped> : ExpressibleByNilLiteral {
   // The compiler has special knowledge of Optional<Wrapped>, including the fact
   // that it is an `enum` with cases named `none` and `some`.
 
@@ -264,7 +264,7 @@ public enum Optional<Wrapped>: ExpressibleByNilLiteral {
   }
 }
 
-extension Optional: CustomDebugStringConvertible {
+extension Optional : CustomDebugStringConvertible {
   /// A textual representation of this instance, suitable for debugging.
   public var debugDescription: String {
     switch self {
@@ -279,7 +279,7 @@ extension Optional: CustomDebugStringConvertible {
   }
 }
 
-extension Optional: CustomReflectable {
+extension Optional : CustomReflectable {
   public var customMirror: Mirror {
     switch self {
     case .some(let value):
@@ -302,24 +302,17 @@ func _diagnoseUnexpectedNilOptional(_filenameStart: Builtin.RawPointer,
                                     _isImplicitUnwrap: Builtin.Int1) {
   // Cannot use _preconditionFailure as the file and line info would not be
   // printed.
-  if Bool(_isImplicitUnwrap) {
-    _preconditionFailure(
-      "Unexpectedly found nil while implicitly unwrapping an Optional value",
-      file: StaticString(_start: _filenameStart,
-                         utf8CodeUnitCount: _filenameLength,
-                         isASCII: _filenameIsASCII),
-      line: UInt(_line))
-  } else {
-    _preconditionFailure(
-      "Unexpectedly found nil while unwrapping an Optional value",
-      file: StaticString(_start: _filenameStart,
-                         utf8CodeUnitCount: _filenameLength,
-                         isASCII: _filenameIsASCII),
-      line: UInt(_line))
-  }
+  preconditionFailure(
+    Bool(_isImplicitUnwrap)
+      ? "Unexpectedly found nil while implicitly unwrapping an Optional value"
+      : "Unexpectedly found nil while unwrapping an Optional value",
+    file: StaticString(_start: _filenameStart,
+                       utf8CodeUnitCount: _filenameLength,
+                       isASCII: _filenameIsASCII),
+    line: UInt(_line))
 }
 
-extension Optional: Equatable where Wrapped: Equatable {
+extension Optional : Equatable where Wrapped : Equatable {
   /// Returns a Boolean value indicating whether two optional instances are
   /// equal.
   ///
@@ -398,7 +391,7 @@ extension Optional: Hashable where Wrapped: Hashable {
 // Enable pattern matching against the nil literal, even if the element type
 // isn't equatable.
 @frozen
-public struct _OptionalNilComparisonType: ExpressibleByNilLiteral {
+public struct _OptionalNilComparisonType : ExpressibleByNilLiteral {
   /// Create an instance initialized with `nil`.
   @_transparent
   public init(nilLiteral: ()) {
@@ -661,13 +654,107 @@ public func ?? <T>(optional: T?, defaultValue: @autoclosure () throws -> T)
 ///     `optional` have the same type.
 @_transparent
 public func ?? <T>(optional: T?, defaultValue: @autoclosure () throws -> T?)
-    rethrows -> T? {
-  switch optional {
-  case .some(let value):
-    return value
-  case .none:
-    return try defaultValue()
-  }
+  rethrows -> T? {
+    switch optional {
+    case .some(let value):
+        return value
+    case .none:
+        return try defaultValue()
+    }
+}
+
+extension Optional where Wrapped : Differentiable {
+    
+    @frozen
+    public struct DifferentiableView : Differentiable {
+        public typealias TangentVector = Optional<Wrapped.TangentVector>.DifferentiableView
+        private var _base: Optional<Wrapped>
+        
+        public var base: Optional<Wrapped> {
+            @differentiable(wrt: self, vjp: _vjpBase)
+            get { return _base }
+            _modify { yield &_base }
+        }
+        
+        @differentiable(wrt: base, vjp: _vjpInit)
+        public init(_ base: Optional<Wrapped>) { self._base = base }
+
+        @usableFromInline
+        func _vjpBase() ->
+          ((Optional<Wrapped>), ((Optional<Wrapped>.TangentVector) -> Optional<Wrapped>.TangentVector)) {
+            return (base, { $0 })
+        }
+        
+        @usableFromInline
+        static func _vjpInit(_ base: Optional<Wrapped>) ->
+          (Optional.DifferentiableView, (TangentVector) -> TangentVector) {
+            return (Optional.DifferentiableView(base), { $0 })
+        }        
+
+        public mutating func move(along direction: TangentVector) {
+            switch (base, direction.base) {
+            case (_, .none): return
+            case (.none, _): fatalError("Move to move `.none`?")
+            case let (.some(x), .some(y)):
+                var wrapped = x
+                wrapped.move(along: y)
+                base = .some(wrapped)
+            }
+        }
+    }
+}
+
+extension Optional: Differentiable where Wrapped: Differentiable {
+    
+    public mutating func move(along direction: TangentVector) {
+        switch (self, direction.base) {
+        case (_, .none): return
+        case (.none, _): fatalError("Move to move `.none`?")
+        case let (.some(x), .some(y)):
+            var wrapped = x
+            wrapped.move(along: y)
+            self = .some(wrapped)
+        }
+    }
+    
+    public typealias TangentVector = Optional<Wrapped.TangentVector>.DifferentiableView
+    
+}
+
+extension Optional.DifferentiableView: AdditiveArithmetic where Wrapped: AdditiveArithmetic {
+    public static var zero: Optional<Wrapped>.DifferentiableView {
+        let zero:Wrapped? = Wrapped.zero
+        return Optional.DifferentiableView(zero)
+    }
+    
+    public static func + (lhs: Self, rhs: Self) -> Self {
+        switch (lhs.base, rhs.base) {
+        case (.none, .none): return Optional.DifferentiableView(.none)
+        case (_, .none): return lhs
+        case (.none, _): return rhs
+        case let (.some(x), .some(y)): return Optional.DifferentiableView(.some(x + y))
+        }
+    }
+    
+    public static func - (lhs: Self, rhs: Self) -> Self {
+        switch (lhs.base, rhs.base) {
+        case (.none, .none): return Optional.DifferentiableView(.none)
+        case (_, .none): return lhs
+        case let (.none, .some(y)):
+            return Optional.DifferentiableView(.some(Wrapped.zero-y))
+        case let (.some(x), .some(y)):
+            return Optional.DifferentiableView(.some(x-y))
+        }
+    }
+}
+
+extension Optional.DifferentiableView: Equatable where Wrapped: Equatable {
+    public static func == (
+      lhs: Optional.DifferentiableView,
+      rhs: Optional.DifferentiableView
+    ) -> Bool {
+        return lhs.base == rhs.base
+    }
 }
 
 //===----------------------------------------------------------------------===//
@@ -675,9 +762,9 @@ public func ?? <T>(optional: T?, defaultValue: @autoclosure () throws -> T?)
 //===----------------------------------------------------------------------===//
 
 #if _runtime(_ObjC)
-extension Optional: _ObjectiveCBridgeable {
+extension Optional : _ObjectiveCBridgeable {
   // The object that represents `none` for an Optional of this type.
-  internal static var _nilSentinel: AnyObject {
+  internal static var _nilSentinel : AnyObject {
     @_silgen_name("_swift_Foundation_getOptionalNilSentinelObject")
     get
   }
