@@ -705,6 +705,7 @@ extension Optional where Wrapped : Differentiable {
 }
 
 extension Optional: Differentiable where Wrapped: Differentiable {
+    
     public mutating func move(along direction: TangentVector) {
         switch (self, direction.base) {
         case (_, .none): return

@@ -27,12 +27,4 @@ OptionalTests.test("Optional DifferentialView Math") {
     expectEqual(noneGrad-twoGrad,negTwoGrad)
 }
 
-OptionalTests.test("Optional identity") {
-    func optionalIdentity(_ x: Optional<Float>) -> Optional<Float> {
-        return x
-    }
-    let one:Optional<Float> = Float("1")
-    let _ = pullback(at: one, in: optionalIdentity)
-}
-
 runAllTests()
