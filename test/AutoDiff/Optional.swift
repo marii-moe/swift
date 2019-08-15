@@ -12,18 +12,18 @@ var OptionalTests = TestSuite("Optional")
 typealias OptionalGrad = Optional<Float>.TangentVector
 
 OptionalTests.test("Optional DifferentialView Math") {
-    let twoGrad = OptionalGrad(2)
+    let twoGrad = OptionalGrad(value: 2)
     let zeroGrad = OptionalGrad.zero
     expectEqual(zeroGrad,twoGrad-twoGrad)
-    let fourGrad=OptionalGrad(4)
+    let fourGrad=OptionalGrad(value: 4)
     expectEqual(twoGrad+twoGrad,fourGrad)
-    let noneGrad = OptionalGrad(Optional<Float>.none)
+    let noneGrad = OptionalGrad(value: Optional<Float>.none)
     expectEqual(noneGrad+noneGrad,noneGrad)
     expectEqual(noneGrad+twoGrad,twoGrad)
     expectEqual(twoGrad+noneGrad,twoGrad)
     expectEqual(noneGrad-noneGrad,noneGrad)
     expectEqual(twoGrad-noneGrad,twoGrad)
-    let negTwoGrad = OptionalGrad(-2)
+    let negTwoGrad = OptionalGrad(value: -2)
     expectEqual(noneGrad-twoGrad,negTwoGrad)
 }
 

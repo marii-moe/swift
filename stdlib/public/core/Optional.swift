@@ -670,10 +670,50 @@ public func ?? <T>(optional: T?, defaultValue: @autoclosure () throws -> T?)
   }
 }
 
-extension Optional where Wrapped : Differentiable {
+extension Optional: Differentiable where Wrapped: Differentiable {
+    public struct TangentVector: @memberwise Differentiable,
+                                 @memberwise AdditiveArithmetic {
+        public var value: Wrapped.TangentVector?
+        public init(value: Wrapped.TangentVector?) { self.value = value }
+        public static var zero: Self {
+            get { Self(value: Wrapped.TangentVector.zero) }
+        }
     
-    @frozen
-    public struct DifferentiableView : Differentiable {
+        
+        public static func + (lhs: Self, rhs: Self) -> Self {
+            switch (lhs.value, rhs.value) {
+            case (.none, .none): return Optional.TangentVector(value: .none)
+            case (_, .none): return lhs
+            case (.none, _): return rhs
+            case let (.some(x), .some(y)): return Optional.TangentVector(value: .some(x + y))
+            }
+        }
+    
+        public static func - (lhs: Self, rhs: Self) -> Self {
+            switch (lhs.value, rhs.value) {
+            case (.none, .none): return Optional.TangentVector(value: .none)
+            case (_, .none): return lhs
+            case let (.none, .some(y)):
+                return Optional.TangentVector(value: .some(Wrapped.TangentVector.zero-y))
+            case let (.some(x), .some(y)):
+                return Optional.TangentVector(value: .some(x-y))
+            }
+        }
+    }
+    public mutating func move(along direction: TangentVector) -> () {
+        self?.move(along: direction.value!)
+    }
+    /*
+    public var zeroTangentVector: TangentVector {
+        TangentVector(value: .zero)
+    }*/
+}
+
+/*
+ extension Optional where Wrapped : Differentiable {
+ 
+    
+    public struct TangentVector : @memberwise Differentiable {
         public typealias TangentVector = Optional<Wrapped.TangentVector>.DifferentiableView
         private var _base: Optional<Wrapped>
         
@@ -728,7 +768,7 @@ extension Optional: Differentiable where Wrapped: Differentiable {
     
 }
 
-extension Optional.DifferentiableView: AdditiveArithmetic where Wrapped: AdditiveArithmetic {
+extension Optional.DifferentiableView: @memberwise AdditiveArithmetic where Wrapped: AdditiveArithmetic {
     public static var zero: Optional<Wrapped>.DifferentiableView {
         let zero:Wrapped? = Wrapped.zero
         return Optional.DifferentiableView(zero)
@@ -763,6 +803,8 @@ extension Optional.DifferentiableView: Equatable where Wrapped: Equatable {
         return lhs.base == rhs.base
     }
 }
+
+ */
 
 //===----------------------------------------------------------------------===//
 // Bridging
