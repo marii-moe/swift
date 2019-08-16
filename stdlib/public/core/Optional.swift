@@ -671,8 +671,8 @@ public func ?? <T>(optional: T?, defaultValue: @autoclosure () throws -> T?)
 }
 
 extension Optional: Differentiable where Wrapped: Differentiable {
-    public struct TangentVector: @memberwise Differentiable,
-                                 @memberwise AdditiveArithmetic {
+    public struct TangentVector: /*@memberwise*/ Differentiable,
+                                 /*@memberwise*/ AdditiveArithmetic {
         public var value: Wrapped.TangentVector?
         public init(value: Wrapped.TangentVector?) { self.value = value }
         public static var zero: Self {
@@ -699,14 +699,16 @@ extension Optional: Differentiable where Wrapped: Differentiable {
                 return Optional.TangentVector(value: .some(x-y))
             }
         }
+        // The compiler synthesizes:
+        public typealias TangentVector = Self
     }
     public mutating func move(along direction: TangentVector) -> () {
         self?.move(along: direction.value!)
     }
-    /*
+    
     public var zeroTangentVector: TangentVector {
         TangentVector(value: .zero)
-    }*/
+    }
 }
 
 /*
