@@ -671,14 +671,15 @@ public func ?? <T>(optional: T?, defaultValue: @autoclosure () throws -> T?)
 }
 
 extension Optional: Differentiable where Wrapped: Differentiable {
-    public struct TangentVector: /* @memberwise */ Differentiable,
-                                 /* @memberwise */ AdditiveArithmetic {
+    public struct TangentVector:  Differentiable,
+                                  AdditiveArithmetic {
         public var value: Wrapped.TangentVector?
-        public init(value: Wrapped.TangentVector?) { self.value = value }
+        public init(value: Wrapped.TangentVector?) {
+            self.value = value
+        }
         public static var zero: Self {
             get { Self(value: Wrapped.TangentVector.zero) }
         }
-    
         
         public static func + (lhs: Self, rhs: Self) -> Self {
             switch (lhs.value, rhs.value) {
@@ -699,7 +700,6 @@ extension Optional: Differentiable where Wrapped: Differentiable {
                 return Optional.TangentVector(value: .some(x-y))
             }
         }
-        // The compiler synthesizes:
         public typealias TangentVector = Self
     }
     public mutating func move(along direction: TangentVector) -> () {
@@ -710,103 +710,6 @@ extension Optional: Differentiable where Wrapped: Differentiable {
         TangentVector(value: .zero)
     }
 }
-
-/*
- extension Optional where Wrapped : Differentiable {
- 
-    
-    public struct TangentVector : @memberwise Differentiable {
-        public typealias TangentVector = Optional<Wrapped.TangentVector>.DifferentiableView
-        private var _base: Optional<Wrapped>
-        
-        public var base: Optional<Wrapped> {
-            @differentiable(wrt: self, vjp: _vjpBase)
-            get { return _base }
-            _modify { yield &_base }
-        }
-        
-        @differentiable(wrt: base, vjp: _vjpInit)
-        public init(_ base: Optional<Wrapped>) { self._base = base }
-
-        @usableFromInline
-        func _vjpBase() ->
-          ((Optional<Wrapped>), ((Optional<Wrapped>.TangentVector) -> Optional<Wrapped>.TangentVector)) {
-            return (base, { $0 })
-        }
-        
-        @usableFromInline
-        static func _vjpInit(_ base: Optional<Wrapped>) ->
-          (Optional.DifferentiableView, (TangentVector) -> TangentVector) {
-            return (Optional.DifferentiableView(base), { $0 })
-        }        
-
-        public mutating func move(along direction: TangentVector) {
-            switch (base, direction.base) {
-            case (_, .none): return
-            case (.none, _): fatalError("Move to move `.none`?")
-            case let (.some(x), .some(y)):
-                var wrapped = x
-                wrapped.move(along: y)
-                base = .some(wrapped)
-            }
-        }
-    }
-}
-
-extension Optional: Differentiable where Wrapped: Differentiable {
-    
-    public mutating func move(along direction: TangentVector) {
-        switch (self, direction.base) {
-        case (_, .none): return
-        case (.none, _): fatalError("Move to move `.none`?")
-        case let (.some(x), .some(y)):
-            var wrapped = x
-            wrapped.move(along: y)
-            self = .some(wrapped)
-        }
-    }
-    
-    public typealias TangentVector = Optional<Wrapped.TangentVector>.DifferentiableView
-    
-}
-
-extension Optional.DifferentiableView: @memberwise AdditiveArithmetic where Wrapped: AdditiveArithmetic {
-    public static var zero: Optional<Wrapped>.DifferentiableView {
-        let zero:Wrapped? = Wrapped.zero
-        return Optional.DifferentiableView(zero)
-    }
-    
-    public static func + (lhs: Self, rhs: Self) -> Self {
-        switch (lhs.base, rhs.base) {
-        case (.none, .none): return Optional.DifferentiableView(.none)
-        case (_, .none): return lhs
-        case (.none, _): return rhs
-        case let (.some(x), .some(y)): return Optional.DifferentiableView(.some(x + y))
-        }
-    }
-    
-    public static func - (lhs: Self, rhs: Self) -> Self {
-        switch (lhs.base, rhs.base) {
-        case (.none, .none): return Optional.DifferentiableView(.none)
-        case (_, .none): return lhs
-        case let (.none, .some(y)):
-            return Optional.DifferentiableView(.some(Wrapped.zero-y))
-        case let (.some(x), .some(y)):
-            return Optional.DifferentiableView(.some(x-y))
-        }
-    }
-}
-
-extension Optional.DifferentiableView: Equatable where Wrapped: Equatable {
-    public static func == (
-      lhs: Optional.DifferentiableView,
-      rhs: Optional.DifferentiableView
-    ) -> Bool {
-        return lhs.base == rhs.base
-    }
-}
-
- */
 
 //===----------------------------------------------------------------------===//
 // Bridging

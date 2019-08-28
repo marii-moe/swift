@@ -11,72 +11,26 @@ var OptionalTests = TestSuite("Optional")
 
 typealias OptionalGrad = Optional<Float>.TangentVector
 
-extension Optional where Wrapped: Differentiable {
-    @differentiable(wrt: self, vjp: _vjpUnWrap)
-    func forceUnwrapped() -> Wrapped {
-        return self.unsafelyUnwrapped2
-    }
-    @inlinable
-    public var unsafelyUnwrapped2: Wrapped {
-        @inline(__always)
-        get {
-            if let x = self {
-                return x
-            }
-            fatalError("Move to move `.none`?")
-        }
-    }
-    
-
-    @usableFromInline
-    func _vjpUnWrap() ->
-      (Wrapped/* TangentVector */, (Wrapped.TangentVector) -> Optional<Wrapped>.TangentVector) {
-        return (self!, { Optional<Wrapped>.TangentVector(value: .some($0)) })
-    }
-    
-
-}
-
-OptionalTests.test("Optional DifferentialView Math") {
-    let twoGrad = OptionalGrad(value: 2)
-    let zeroGrad = OptionalGrad.zero
-    expectEqual(zeroGrad,twoGrad-twoGrad)
-    let fourGrad=OptionalGrad(value: 4)
-    expectEqual(twoGrad+twoGrad,fourGrad)
-    let noneGrad = OptionalGrad(value: Optional<Float>.none)
-    expectEqual(noneGrad+noneGrad,noneGrad)
-    expectEqual(noneGrad+twoGrad,twoGrad)
-    expectEqual(twoGrad+noneGrad,twoGrad)
-    expectEqual(noneGrad-noneGrad,noneGrad)
-    expectEqual(twoGrad-noneGrad,twoGrad)
-    let negTwoGrad = OptionalGrad(value: -2)
-    expectEqual(noneGrad-twoGrad,negTwoGrad)
-}
-
 OptionalTests.test("Optional Dense") {
-    struct Square : Differentiable {
-        @differentiable
-        func callAsFunction(_ x: Float) -> Float {
-          return x * x
-        }
-    }
     struct optFunc : Differentiable {
-        @noDerivative var f1: Square?
-        init(f1 fopt: Square ) {
-            f1=Optional.some(fopt)
+        /*@noDerivative*/ var f1: Float?
+        init(f1 f: Float ) {
+            f1=Optional.some(f)
         }
-        @differentiable
+        //@differentiable
         func callAsFunction(_ x: Float) -> Float {
             if let _ = f1 {
-                let f = f1.forceUnwrapped()
-                return f(x)
+                let f = f1!
+                return f*x
             }
             return x
         }
     }
-    //let four:Optional<Float>.TangentVector = Optional<Float>.TangentVector(value: 4.0)
-    let grad = optFunc(f1: Square()).gradient(at: 4, in: { dense, x in dense(x) })
-    expectEqual((optFunc.TangentVector(),8.0),grad)
+    let opt = optFunc(f1: 2.0)
+    let grad = opt.gradient(at: 4, in: { dense, x in dense(x) })
+    //let backprop = opt.pullback(at: 100, in: { dense, x in dense(x) })
+    expectEqual(grad,(optFunc.TangentVector(f1: OptionalGrad(value: 1.0) ), 2.0))
+    //expectEqual(backprop(-2.0),(optFunc.TangentVector(f1: OptionalGrad(value: 1.0) ),-4.0))
 }
 
 runAllTests()
