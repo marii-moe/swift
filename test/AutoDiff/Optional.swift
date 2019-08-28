@@ -19,7 +19,7 @@ OptionalTests.test("Optional Dense") {
         }
         //@differentiable
         func callAsFunction(_ x: Float) -> Float {
-            if let _ = f1 {
+            if f1 != nil {
                 let f = f1!
                 return f*x
             }
